@@ -13,7 +13,7 @@ namespace LordAshes
     {
         // Plugin info
         private const string Guid = "org.lordashes.plugins.glowbase";
-        private const string Version = "1.0.0.0";
+        private const string Version = "1.0.1.0";
 
         // Content directory
         private string dir = UnityEngine.Application.dataPath.Substring(0, UnityEngine.Application.dataPath.LastIndexOf("/")) + "/TaleSpire_CustomData/";
@@ -40,19 +40,21 @@ namespace LordAshes
         {
             UnityEngine.Debug.Log("Lord Ashes Glow Base Plugin Active.");
 
+            StateDetection.Initialize(this.GetType());
+
             Texture2D tex = new Texture2D(32, 32);
             tex.LoadImage(System.IO.File.ReadAllBytes(dir + "Images/Icons/BasePaint.Png"));
             Sprite icon = Sprite.Create(tex, new Rect(0, 0, 32, 32), new Vector2(0.5f, 0.5f));
 
             RadialUI.RadialUIPlugin.AddOnCharacter(Guid, new MapMenu.ItemArgs
             {
-                Action = (mmi,obj)=>
+                Action = (mmi, obj) =>
                 {
                     // When paint base is selected post it to StatMessaging (distribute to all clients)
-                    SystemMessage.AskForTextInput("Paint Base", "Color(s): ", "Paint", (color) => 
+                    SystemMessage.AskForTextInput("Paint Base", "Color(s): ", "Paint", (color) =>
                     {
                         StatMessaging.SetInfo(radialCreature, GlowBasePlugin.Guid, color);
-                    }, null, "Normal", () => 
+                    }, null, "Normal", () =>
                     {
                         StatMessaging.SetInfo(radialCreature, GlowBasePlugin.Guid, "");
                     },
@@ -61,19 +63,19 @@ namespace LordAshes
                 Icon = icon,
                 Title = "Paint Base",
                 CloseMenuOnActivate = true
-            }, Reporter);        
+            }, Reporter);
 
-            StatMessaging.Subscribe(GlowBasePlugin.Guid, (changes)=>
+            StatMessaging.Subscribe(GlowBasePlugin.Guid, (changes) =>
             {
                 // When knockover message is received
-                foreach(StatMessaging.Change change in changes)
+                foreach (StatMessaging.Change change in changes)
                 {
                     // Process knockover
                     CreatureBoardAsset asset;
                     CreaturePresenter.TryGetAsset(change.cid, out asset);
-                    if(asset!=null)
+                    if (asset != null)
                     {
-                        if(change.value=="")
+                        if (change.value == "")
                         {
                             Debug.Log("Turning Glow Color Off");
                             try
@@ -91,7 +93,7 @@ namespace LordAshes
                             if (sequenceOfColors.ContainsKey(asset.Creature.CreatureId)) { sequenceOfColors.Remove(asset.Creature.CreatureId); }
                             if (sequenceOfColorsPointer.ContainsKey(asset.Creature.CreatureId)) { sequenceOfColorsPointer.Remove(asset.Creature.CreatureId); }
                             string[] sequence = change.value.Split(',');
-                            if(sequence.Length==1)
+                            if (sequence.Length == 1)
                             {
                                 // Single Color
                                 Debug.Log("Setting Glow Color To One Color");
@@ -108,7 +110,7 @@ namespace LordAshes
                                     System.Drawing.Color src;
                                     System.Drawing.Color dst;
                                     src = System.Drawing.Color.FromName(sequence[s]);
-                                    if (s < (sequence.Length - 1)) { dst = System.Drawing.Color.FromName(sequence[s+1]); } else { dst = System.Drawing.Color.FromName(sequence[0]); }
+                                    if (s < (sequence.Length - 1)) { dst = System.Drawing.Color.FromName(sequence[s + 1]); } else { dst = System.Drawing.Color.FromName(sequence[0]); }
                                     Debug.Log("Adding 5x RGBA(" + (src.R / 255f) + "," + (src.G / 255f) + "," + (src.B / 255f) + ":" + (src.A / 255f) + ")");
                                     for (int n = 0; n < sequenceSteps; n++)
                                     {
@@ -118,10 +120,10 @@ namespace LordAshes
                                     float dG = (dst.G - src.G) / sequenceSteps;
                                     float dB = (dst.B - src.B) / sequenceSteps;
                                     float dA = (dst.A - src.A) / sequenceSteps;
-                                    for(int d=1; d<= sequenceSteps; d++)
+                                    for (int d = 1; d <= sequenceSteps; d++)
                                     {
                                         Debug.Log("Adding RGBA(" + ((src.R + d * dR) / 255f) + "," + ((src.G + d * dG) / 255f) + "," + ((src.B + d * dB) / 255f) + ":" + ((src.A + d * dA) / 255f) + ")");
-                                        colorSequence.Add(new Color(((src.R+d*dR) / 255f), ((src.G+d*dG) / 255f), ((src.B+d*dB) / 255f), ((src.A+d*dA) / 255f)));
+                                        colorSequence.Add(new Color(((src.R + d * dR) / 255f), ((src.G + d * dG) / 255f), ((src.B + d * dB) / 255f), ((src.A + d * dA) / 255f)));
                                     }
                                 }
                                 sequenceOfColors.Add(asset.Creature.CreatureId, colorSequence.ToArray());
@@ -152,7 +154,7 @@ namespace LordAshes
         void Update()
         {
             CreatureBoardAsset asset;
-            if (LocalClient.SelectedCreatureId!=lastSelected)
+            if (LocalClient.SelectedCreatureId != lastSelected)
             {
                 // When base is not selected, restore original texture 
                 CreaturePresenter.TryGetAsset(lastSelected, out asset);
@@ -165,16 +167,16 @@ namespace LordAshes
                 }
             }
             CreaturePresenter.TryGetAsset(LocalClient.SelectedCreatureId, out asset);
-            if(asset!=null)
+            if (asset != null)
             {
-                if(sequenceOfColorsPointer.ContainsKey(asset.Creature.CreatureId))
+                if (sequenceOfColorsPointer.ContainsKey(asset.Creature.CreatureId))
                 {
                     // Seqeunce colors for selected base
                     int ptr = sequenceOfColorsPointer[asset.Creature.CreatureId];
                     ptr++;
-                    if (ptr>= sequenceOfColors[asset.Creature.CreatureId].Length) { ptr = 0; }
+                    if (ptr >= sequenceOfColors[asset.Creature.CreatureId].Length) { ptr = 0; }
                     sequenceOfColorsPointer[asset.Creature.CreatureId] = ptr;
-                    Color[] pixels = Enumerable.Repeat(sequenceOfColors[asset.Creature.CreatureId][ptr], 16*16).ToArray();
+                    Color[] pixels = Enumerable.Repeat(sequenceOfColors[asset.Creature.CreatureId][ptr], 16 * 16).ToArray();
                     Texture2D tex = new Texture2D(16, 16);
                     tex.SetPixels(pixels);
                     tex.Apply();
